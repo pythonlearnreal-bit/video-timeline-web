@@ -18,3 +18,9 @@ Web app สำหรับจัดการ project วิดีโอ NSFW ท
 
 ## Agent Integration
 Agent ใช้ service role key อัปโหลดไฟล์ไป Storage แล้ว insert ลงตาราง `clips` พร้อม `clip_code` อ้างอิง
+
+## Agent Flow
+1. Agent เรียก HotAPI สร้างรูป/วิดีโอ
+2. ดาวน์โหลดผล
+3. ใช้ `lib/agent_upload.py` อัปโหลดเข้า Supabase Storage + insert ลงตาราง clips
+4. Timeline บนเว็บอัปเดตอัตโนมัติ
