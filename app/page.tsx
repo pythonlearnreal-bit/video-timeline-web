@@ -34,6 +34,9 @@ export default function Home() {
               <Link href={`/project/${p.id}`} className="text-blue-600 hover:underline">
                 {p.name}
               </Link>
+              <span className="text-xs text-gray-400 ml-2">
+                {new Date(p.created_at).toLocaleDateString()}
+              </span>
             </li>
           ))}
         </ul>
