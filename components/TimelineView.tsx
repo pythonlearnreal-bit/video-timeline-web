@@ -7,8 +7,7 @@ type Clip = {
   clip_code: string
   clip_type: string
   video_url: string | null
-  image_url: string | null
-  prompt: string | null
+  order_in_scene: number
   duration_seconds: number | null
 }
 
@@ -19,74 +18,70 @@ type Scene = {
   clips: Clip[]
 }
 
-type Project = {
-  id: string
-  name: string
-  scenes: Scene[]
-}
-
 export default function TimelineView({ projectId }: { projectId: string }) {
-  const [project, setProject] = useState<Project | null>(null)
+  const [projectName, setProjectName] = useState('')
+  const [scenes, setScenes] = useState<Scene[]>([])
 
   useEffect(() => {
     async function load() {
-      const { data: proj } = await supabase
-        .from('projects')
-        .select('id, name')
-        .eq('id', projectId)
-        .single()
+      const { data: proj } = await supabase.from('projects').select('name').eq('id', projectId).single()
+      if (proj) setProjectName(proj.name)
 
-      const { data: scenes } = await supabase
+      const { data } = await supabase
         .from('scenes')
-        .select(`
-          id, scene_number, name,
-          clips (id, clip_code, clip_type, video_url, image_url, prompt, duration_seconds, order_in_scene)
-        `)
+        .select(`id, scene_number, name, clips (id, clip_code, clip_type, video_url, order_in_scene, duration_seconds)`)
         .eq('project_id', projectId)
         .order('scene_number')
 
-      if (proj && scenes) {
-        const sorted = scenes.map(s => ({
+      if (data) {
+        setScenes(data.map(s => ({
           ...s,
           clips: (s.clips || []).sort((a: any, b: any) => a.order_in_scene - b.order_in_scene)
-        }))
-        setProject({ ...proj, scenes: sorted })
+        })))
       }
     }
     load()
   }, [projectId])
 
-  if (!project) return <div>Loading...</div>
-
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">{project.name}</h1>
-      <div className="space-y-6">
-        {project.scenes.map(scene => (
-          <div key={scene.id} className="border rounded p-4">
-            <h2 className="font-semibold">Scene {scene.scene_number}: {scene.name || 'Untitled'}</h2>
-            <div className="flex gap-3 mt-3 overflow-x-auto">
-              {scene.clips.map(clip => (
-                <div key={clip.id} className="border rounded p-3 min-w-[200px]">
-                  <div className="font-mono text-sm">{clip.clip_code}</div>
-                  <div className="text-xs text-gray-500">{clip.clip_type}</div>
-                  {clip.video_url && (
-                    <video src={clip.video_url} controls className="w-full mt-2" />
+    <div style={{ padding: 24, fontFamily: 'system-ui, sans-serif', background: '#0f0f0f', color: '#eee', minHeight: '100vh' }}>
+      <h1 style={{ marginBottom: 8 }}>{projectName}</h1>
+      <p style={{ color: '#888', marginBottom: 24 }}>Timeline — แต่ละฉากมีท่อนที่ต่อกันตามลำดับ</p>
+
+      {scenes.map(scene => (
+        <div key={scene.id} style={{ marginBottom: 32, border: '1px solid #333', borderRadius: 8, padding: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 12 }}>
+            Scene {scene.scene_number} {scene.name ? `— ${scene.name}` : ''}
+          </div>
+          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', alignItems: 'flex-start' }}>
+            {scene.clips.map((clip, idx) => (
+              <div key={clip.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 180, background: '#1a1a1a', borderRadius: 6, padding: 8, flexShrink: 0 }}>
+                  <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#aaa' }}>{clip.clip_code}</div>
+                  <div style={{ fontSize: 11, color: clip.clip_type === 'original' ? '#4ade80' : '#60a5fa', marginBottom: 6 }}>
+                    {clip.clip_type}
+                  </div>
+                  {clip.video_url ? (
+                    <video src={clip.video_url} controls style={{ width: '100%', borderRadius: 4 }} />
+                  ) : (
+                    <div style={{ height: 100, background: '#222', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#666' }}>
+                      No video
+                    </div>
                   )}
-                  {clip.image_url && !clip.video_url && (
-                    <img src={clip.image_url} alt="" className="w-full mt-2" />
-                  )}
                   {clip.video_url && (
-                    <a href={clip.video_url} download className="text-blue-600 text-sm block mt-1">
+                    <a href={clip.video_url} download style={{ fontSize: 11, color: '#60a5fa', display: 'block', marginTop: 4 }}>
                       Download
                     </a>
                   )}
                 </div>
-              ))}
-            </div>
+                {idx < scene.clips.length - 1 && (
+                  <div style={{ color: '#555', fontSize: 20 }}>→</div>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   )
 }
